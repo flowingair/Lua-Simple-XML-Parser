@@ -22,63 +22,61 @@ function xmlSimple.newParser()
     XmlParser = {};
 
     -- function XmlParser:ToXmlString(value)
-        -- value = string.gsub(value, "&", "&amp;"); -- '&' -> "&amp;"
-        -- value = string.gsub(value, "<", "&lt;"); -- '<' -> "&lt;"
-        -- value = string.gsub(value, ">", "&gt;"); -- '>' -> "&gt;"
-        -- value = string.gsub(value, "\"", "&quot;"); -- '"' -> "&quot;"
-        -- value = string.gsub(value, "([^%w%&%;%p%\t% ])",
-            -- function(c)
-                -- return string.format("&#x%X;", string.byte(c))
-            -- end);
-        -- return value;
+    --     value = string.gsub(value, "&", "&amp;"); -- '&' -> "&amp;"
+    --     value = string.gsub(value, "<", "&lt;"); -- '<' -> "&lt;"
+    --     value = string.gsub(value, ">", "&gt;"); -- '>' -> "&gt;"
+    --     value = string.gsub(value, "\"", "&quot;"); -- '"' -> "&quot;"
+    --     value = string.gsub(value, "([^%w%&%;%p%\t% ])", function(c)
+    --         return string.format("&#x%X;", string.byte(c))
+    --     end);
+    --     return value;
     -- end
-    
+
     function XmlParser:FromXmlString(value)
-        local utf8bits = { {0x7FF,{192,32},{128,64}}, {0xFFFF,{224,16},{128,64},{128,64}}, {0x1FFFFF,{240,8},{128,64},{128,64},{128,64}} }
-        value = string.gsub(value, "&#x([%x]+)%;",
-            function(h)
-                if (tonumber(h, 16)<=127) then
-                    return string.char(tonumber(h, 16))
-                else
-                    h=tonumber(h, 16)
-                    local charbytes = {}
-                    for b,lim in ipairs(utf8bits) do
-                        if h<=lim[1] then
-                            for i=b+1,2,-1 do
-                                local prefix,max = lim[i+1][1],lim[i+1][2]
-                                local mod = h % max
-                                charbytes[i] = string.char( prefix + mod )
-                                h = ( h - mod ) / max
-                            end
-                            charbytes[1] = string.char( h + lim[2][1] )
-                            break
+        local utf8bits = {{0x7FF, {192, 32}, {128, 64}}, {0xFFFF, {224, 16}, {128, 64}, {128, 64}},
+                          {0x1FFFFF, {240, 8}, {128, 64}, {128, 64}, {128, 64}}}
+        value = string.gsub(value, "&#x([%x]+)%;", function(h)
+            if (tonumber(h, 16) <= 127) then
+                return string.char(tonumber(h, 16))
+            else
+                h = tonumber(h, 16)
+                local charbytes = {}
+                for b, lim in ipairs(utf8bits) do
+                    if h <= lim[1] then
+                        for i = b + 1, 2, -1 do
+                            local prefix, max = lim[i + 1][1], lim[i + 1][2]
+                            local mod = h % max
+                            charbytes[i] = string.char(prefix + mod)
+                            h = (h - mod) / max
                         end
+                        charbytes[1] = string.char(h + lim[2][1])
+                        break
                     end
-                    return table.concat(charbytes)
                 end
-            end);
-        value = string.gsub(value, "&#([0-9]+)%;",
-            function(h)
-                if (tonumber(h, 10)<=127) then
-                    return string.char(tonumber(h, 10))
-                else
-                    h=tonumber(h, 10)
-                    local charbytes = {}
-                    for b,lim in ipairs(utf8bits) do
-                        if h<=lim[1] then
-                            for i=b+1,2,-1 do
-                                local prefix,max = lim[i+1][1],lim[i+1][2]
-                                local mod = h % max
-                                charbytes[i] = string.char( prefix + mod )
-                                h = ( h - mod ) / max
-                            end
-                            charbytes[1] = string.char( h + lim[2][1] )
-                            break
+                return table.concat(charbytes)
+            end
+        end);
+        value = string.gsub(value, "&#([0-9]+)%;", function(h)
+            if (tonumber(h, 10) <= 127) then
+                return string.char(tonumber(h, 10))
+            else
+                h = tonumber(h, 10)
+                local charbytes = {}
+                for b, lim in ipairs(utf8bits) do
+                    if h <= lim[1] then
+                        for i = b + 1, 2, -1 do
+                            local prefix, max = lim[i + 1][1], lim[i + 1][2]
+                            local mod = h % max
+                            charbytes[i] = string.char(prefix + mod)
+                            h = (h - mod) / max
                         end
+                        charbytes[1] = string.char(h + lim[2][1])
+                        break
                     end
-                    return table.concat(charbytes)
                 end
-            end);
+                return table.concat(charbytes)
+            end
+        end);
         value = string.gsub(value, "&quot;", "\"");
         value = string.gsub(value, "&apos;", "'");
         value = string.gsub(value, "&gt;", ">");
@@ -101,7 +99,9 @@ function xmlSimple.newParser()
         local i, j = 1, 1
         while true do
             ni, j, c, label, xarg, empty = string.find(xmlText, "<(%/?)([%w_:]+)(.-)(%/?)>", i)
-            if not ni then break end
+            if not ni then
+                break
+            end
             local text = string.sub(xmlText, i, ni - 1);
             if not string.find(text, "^%s*$") then
                 local lVal = (top:value() or "") .. self:FromXmlString(text)
@@ -115,16 +115,16 @@ function xmlSimple.newParser()
                 local lNode = xmlSimple.newNode(label)
                 self:ParseArgs(lNode, xarg)
                 table.insert(stack, lNode)
-        top = lNode
+                top = lNode
             else -- end tag
                 local toclose = table.remove(stack) -- remove top
 
                 top = stack[#stack]
                 if #stack < 1 then
-                    return nil,"XmlParser: nothing to close with " .. label
+                    return nil, "XmlParser: nothing to close with " .. label
                 end
                 if toclose:name() ~= label then
-                    return nil,"XmlParser: trying to close " .. toclose.name .. " with " .. label
+                    return nil, "XmlParser: trying to close " .. toclose.name .. " with " .. label
                 end
                 top:addChild(toclose)
             end
@@ -132,7 +132,7 @@ function xmlSimple.newParser()
         end
         local text = string.sub(xmlText, i);
         if #stack > 1 then
-            return nil,"XmlParser: unclosed " .. stack[#stack]:name()
+            return nil, "XmlParser: unclosed " .. stack[#stack]:name()
         end
         return top
     end
@@ -165,13 +165,25 @@ function xmlSimple.newNode(name)
     node.___children = {}
     node.___props = {}
     node.___data = {}
-    
-    function node:value() return self.___value end
-    function node:setValue(val) self.___value = val end
-    function node:name() return self.___name end
-    function node:setName(name) self.___name = name end
-    function node:children() return self.___children end
-    function node:numChildren() return #self.___children end
+
+    function node:value()
+        return self.___value
+    end
+    function node:setValue(val)
+        self.___value = val
+    end
+    function node:name()
+        return self.___name
+    end
+    function node:setName(name)
+        self.___name = name
+    end
+    function node:children()
+        return self.___children
+    end
+    function node:numChildren()
+        return #self.___children
+    end
     function node:addChild(child)
         if self.___data[child:name()] ~= nil then
             --[[
@@ -188,8 +200,12 @@ function xmlSimple.newNode(name)
         table.insert(self.___children, child)
     end
 
-    function node:properties() return self.___props end
-    function node:numProperties() return #self.___props end
+    function node:properties()
+        return self.___props
+    end
+    function node:numProperties()
+        return #self.___props
+    end
     function node:addProperty(name, value)
         local lName = "@" .. name
         if self.___data[lName] ~= nil then
@@ -202,7 +218,10 @@ function xmlSimple.newNode(name)
         else
             self.___data[lName] = value
         end
-        table.insert(self.___props, { name = name, value = self.___data[lName] })
+        table.insert(self.___props, {
+            name = name,
+            value = self.___data[lName]
+        })
     end
 
     return node
